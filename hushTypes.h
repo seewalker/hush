@@ -1,18 +1,16 @@
 #include <string.h>
+#include <limits.h>
+#include <stdlib.h>
+#include <sys/time.h>
 
-typedef jobsVal unsigned short;
-typedef cmdVal unsigned short;
-typedef errVal int; //because my error types are declared in an enum
-typedef bool_t unsigned short;
+#define jobCap 64
+#define cmdCap 1000
+#define dirCap 100
+#define histCap 999999
+//What is the meaning of all the struct words?
 
-struct limitSpec {
-    const jobsVal jobs = 64;
-    const cmdVal cmdLen = 1000;
-    const unsigned int numOptions = 100;
-    const unsigned int optionLen = 200;
-    const unsigned int numArgs = 100;
-    const unsigned int argLen = 200;
-} hushLimits;
+typedef int bool_t;
+typedef int errVal;
 
 struct sysEnv {
     char* ARCH;
@@ -25,31 +23,48 @@ struct sysEnv {
     char* HOME;
     char* USER;
     char* PS1;
-} hushEnv;
+    struct *dV {
+        char* name;
+        int value; //for now, these will be integers.
+    }
+} hushEnv = {"","/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin","hush",
+             "/","/","less",
+             "vi","","","<[H]> "};
 
-typedef struct jobItem {
+typedef struct hE {
+    long long int index;
+    // some sort of timestamp
+    struct timeval tv;
+} historyEntry;
+
+typedef struct jI {
     pid_t pid;
-    char* tty;
-    char* cmdStr; 
-    command_t cmd;
-}
-
-typedef struct command_t {
-    char* name;
-    char** optionsNargs;
+    char cmdStr[cmdCap];  //the raw command.
+    //what should a processed command be? It should be a list of commands which
+    //all get executed. Or a single command which gets executed. Or a modification
+    //of the shell's internal state (e.g. cd, pushd). Or a command which has its
+    //arguments modified by the shell's state. Yeah, so a list of commands where
+    //a command is a pre-processed 
+    char **cmd;           //the processed command.
+    char ***cmdAST;
     bool_t isBackground;
-}
+} jobItem;
 
-struct State {
-    bool_t isInteractivate;
+struct hS {
+    bool_t isInteractive;
     bool_t isRunning;
-    enum { okComputer, unknownArch, undefinedOption, commandNotFound } hushErrno;
+    enum { okComputer, hushUnknownArch, hushUndefinedOption, hushCommandNotFound
+           hushEnvironmentError } hushErrno;
     jobItem jobs[jobCap];
-    jobsVal jobCount;
-    char** dirStack;
+    unsigned short int jobCount;
+    historyEntry hushHist[histCap];
+    unsigned short int histCount;
+    char dirStack[dirCap];
+    unsigned short int dirCount;
 } hushState;
 
-char** hushBuiltins = {"cd", "pwd", "pushd", "popd", "for"}
-unsigned int numBuiltins = strlen(hushBuiltins);
+const char *hushBuiltins[] =  {"cd", "pwd", "pushd", "popd", "for", "set", "fc", "hist"};
+const char *envDeps[] =  {"man"};
+
 //Matters of Strategy:
 //   I will not typedef structs which will have only one instantiation.

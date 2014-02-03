@@ -1,7 +1,9 @@
 #include "hushTypes.h"
+#include <unistd.h>
+#include <getopt.h>
     // hushTypes is not necessary except for the fact that it includes
     // string.h and I do not want to duplicate an include.
-static struct option long_options[] = {
+struct option *long_options = {
     {"PATH", required_argument, 0, 'p'},
     {"PWD", required_argument, 0, 'c' },
     {"PAGER", required_argument, 0, 'a' },
@@ -12,7 +14,9 @@ static struct option long_options[] = {
 };
 
 struct optionSpec {
-    char* knownOpts = "pcaern";
-    int numKnownOpts = strlen(knownOpts);
-    int optLen[knownOpts] = {2,2,2,2,2,1};
-} hushOptSpec;
+    char *knownOpts;
+    int numKnownOpts;
+    //the number of words each option introduces is necessary
+    //in order to execute the startup command.
+    int *optLen;
+} hushOptSpec = {"pcaern", 6, {2,2,2,2,2,1}};

@@ -1,13 +1,10 @@
-#include "hushTypes.h"
 #include "hushOptions.h"
-#include <unistd.h>
-#include <getopt.h>
-    // unistd.h provides the getopt feature
+    //hushOptions has already included hushTypes
 
 // Side Effects: modifies only hushEnv
 // For description of errVal, see State.hushErrno
 errVal setEnv(int argc, char** argv) {
-    hushState.hushErrno = hushState.okComputer;
+    hushState.hushErrno = okComputer;
     // Architecture Stuff
     #ifdef __FreeBSD__
     strcpy(hushEnv.ARCH, "FreeBSD");
@@ -15,30 +12,25 @@ errVal setEnv(int argc, char** argv) {
     #ifdef __linux__
     strcpy(hushEnv.ARCH, "Linux");
     #endif
-    if (hushEnv.ARCH != "Linux" && hushEnv.ARCH != "FreeBSD") {
-        hushState.hushErrno = hushState.unknownArch;
+    if (strcmp(hushEnv.ARCH, "Linux") && strcmp(hushEnv.ARCH , "FreeBSD")) {
+        hushState.hushErrno = hushUnknownArch;
     }
     
     // Establish default values. 
     if (getenv("PATH") != NULL) { strcpy(hushEnv.PATH, getenv("PATH")); }
-    else { strcpy(hushEnv.PATH, "/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin"); }
     strcpy(hushEnv.SHELL, "hush");
     strcpy(hushEnv.PWD, getenv("PWD"));
     if (getenv("OLDPWD") != NULL) { strcpy(hushEnv.OLDPWD, getenv("OLDPWD")); }
-    else { strcpy(hushEnv.OLDPWD, "/"; }
+    else { strcpy(hushEnv.OLDPWD, "/"); }
     if (getenv("PAGER") != NULL) { strcpy(hushEnv.PAGER, getenv("PAGER")); }
-    else { strcpy(hushEnv.PAGER, "less"); }
     if (getenv("EDITOR") != NULL) { strcpy(hushEnv.EDITOR, getenv("EDITOR")); }
-    else { strcopy(hushEnv.EDITOR, "vim"); }
     if (getenv("HOME") != NULL) { strcpy(hushEnv.HOME, getenv("HOME")); }
-    else { hushState.hushErrno = hushState.environmentError; }
+    else { hushState.hushErrno = hushEnvironmentError; }
     if (getenv("USER") != NULL) { strcpy(hushEnv.USER, getenv("USER")); }
-    else { hushState.hushErrno = hushState.environmentError; }
-    strcpy(hushEnv.PS1, "<[H]>");
-
+    else { hushState.hushErrno = hushEnvironmentError; }
     // Override defaults based on options.
     int opt = 0, long_index = 0;
-    while ((opt = getopt_long(argc,argv,"p:c:a:e:r:n",
+    while ((opt = getopt_long(argc,argv,"p:c:a:e:r:n:",
                              long_options, &long_index)) != -1) {
         switch (opt) {
             case 'p' : strcpy(hushEnv.PATH, optarg);
@@ -46,7 +38,7 @@ errVal setEnv(int argc, char** argv) {
             case 'a' : strcpy(hushEnv.PAGER, optarg);
             case 'e' : strcpy(hushEnv.EDITOR, optarg);
             case 'r' : strcpy(hushEnv.PS1, optarg);
-            default : hushState.hushErrno = hushState.undefinedOption;
+            default : hushState.hushErrno = hushUndefinedOption;
         }
     }
     return (hushState.hushErrno);
@@ -55,16 +47,18 @@ errVal setEnv(int argc, char** argv) {
 // Side Effects: modifies only hushState
 // For description of errVal, see State.hushErrno
 errVal setState(int argc, char** argv) {
+    int opt = 0, long_index = 0;
     hushState.isInteractive = 1;
     hushState.isRunning = 1;
     hushState.jobCount = 0;
-    while ((opt = getopt_long(argc,argv,"p:c:a:e:r:n",
+    hushState.dirCount = 0;
+    hushState.histCount = 0;
+    while ((opt = getopt_long(argc,argv,"p:c:a:e:r:n:",
                              long_options, &long_index)) != -1) {
-        switch (opt) {
-            case 'n' :
-                hushState.isInteractive = 0;
-                hushState.isRunning = 0;
-            default : hushState.hushErrno = hushState.undefinedOption;
+        if (opt == 'n') {
+            hushState.isInteractive = 0;
+            hushState.isRunning = 0;
+            strcpy(hushState.jobs[hushState.jobCount].cmdStr, optarg);
         }
     }
     return (hushState.hushErrno);
@@ -72,50 +66,60 @@ errVal setState(int argc, char** argv) {
 
 void errorFunnel(errVal setEnvRes) {
     switch (setEnvRes) {
-        case hushState.okComputer: return;
-        case hushState.unknownArch: printf("Warning, unrecognized architecture\n");
-        case hushState.undefinedOption: exit(hushState.undefinedOption);
+        case okComputer: return;
+        case hushUnknownArch: fprintf(stderr, "Warning, unrecognized architecture\n");
+        case hushUndefinedOption: exit(hushUndefinedOption);
+        case hushEnvironmentError: exit(hushEnvironmentError);
+        case hushHistExpansionError: fprintf(stderr, "Malformed history Expansion\n");
+        case hushFilePathExpansionError: fprintf(stderr, "Malformed filepath Expansion\n");
         default: printf("Unclassified Error \n");
     }
 }
 
 // Side Effects: modifies hushState.jobs
 // For description of errVal, see State.hushErrno
-errVal setCmd(argc, argv, bool_t isStartup) {
-    int arg = 1, argOffset = 0; //arg starts at 1 because argv[0] will be 'hush'.
-    if (isStartup) {
-        int numMatches = 0, discardMode = 1;
-        while (discardMode) {
-            for (int i = 0; i < hushOptSpec.numKnownOpts; ++i) {
-                if (argv[arg] == strcat("-", hushOptSpec.knownOpts[i])) {
-                    arg += hushOptSpec.optLen[i];
-                    ++numMatches;
-                }
+// setCmd
+errVal preprocessCmd(strLength, str, bool_t isStartup) {
+    char *word;
+    int j = 0;
+    //Build cmdAST
+    for (int i = 0; i < strLength; ++i) {
+        if (str[i] == ' ') {
+            while (str[i] == ' ') {
+                str[i] = str[i + 1];
             }
-            if (numMatches == 0) { discardMode = 0; }
+            strcpy(hushState.jobs[hushState.jobCount].cmdAST[0][j], word);
+            ++j;
+        }
+        else {
+            word = strcat(word, &(str[i])); //append the current character to the current word.
         }
     }
-    //At this point, [argv[arg], argv[argc - 1]] is all the command.
-    strcpy(hushState.jobs[hushState.jobCount].cmd.name, argv[arg]);
-    argOffset = arg++;
-    for (; arg < argc; ++arg) {
-        strcpy(hushState.jobs[hushState.jobCount].cmd.optionsNargs[arg - argOffset], argv[arg]);
-        if (arg == (argc - 1)) {
-            if (argv[arg] == "&") { 
-                hushState.jobs[hushState.jobCount].cmd.isBackground = 1;
-                //I am choosing to increment the job counter later so that it is guarenteed
-                //that the command beginned execution before another job is on the table.
+    //Operate on cmdAST
+    for (int i = 0; i < strlen(hushBuiltins); ++i) {
+        if (strcmp(hushBuiltins[i], hushState.jobs[hushState.jobCount].cmdAST[0][0])) {
+            hushState.hushErrno = handleBuiltin(hushBuiltins[i]);
+            if (hushState.hushErrno != okComputer) {
+                errorFunnel(hushState.hushErrno);
             }
+        }
+    }
+    errorFunnel(expansions()); 
+    //Now we flatten the AST to get a sequence of commands
+    for (int i = 0; i < strlen(hush.State.jobs[hushState.jobCount].cmdAST); ++i) {
+        for (int j = 0; j < strlen(hushState.jobs[hushState.jobCount].cmdAST[i]); ++j) {
+            strcat(hushState.jobs[hushState.jobCount].cmd[i],
+                   hushState.jobs[hushState.jobCount].cmdAST[i][j]);
         }
     }
     return (hushState.hushErrno);
 }
-
 // A command 
-void doCmd(command_t cmd) {
+void doCmd(char **cmd) {
     pid_t forkRet = fork();
-    for (
     if (forkRet == 0) {  //child process branch
+        for (int i = 0; i < strlen(cmd); ++i) {
+
         execv(sysEnv.PATH, hushState.jobs[hushState.jobCount].cmdStr);
     }
     else if (forkRet > 0) { //parent process branch
@@ -126,4 +130,14 @@ void doCmd(command_t cmd) {
     else {
         fprintf(stderr, "Failed to fork in doCmd\n");
     }
+}
+
+errVal expansions() {
+    //pathname expansions
+
+    //history expansions
+}
+
+errVal handleBuiltin(char* theBuiltin) {
+
 }
