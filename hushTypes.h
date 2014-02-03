@@ -9,9 +9,6 @@
 #define histCap 999999
 //What is the meaning of all the struct words?
 
-typedef int bool_t;
-typedef int errVal;
-
 struct sysEnv {
     char* ARCH;
     char* PATH;
@@ -23,23 +20,25 @@ struct sysEnv {
     char* HOME;
     char* USER;
     char* PS1;
-    struct *dV {
+    struct dV {
         char* name;
         int value; //for now, these will be integers.
-    }
+    } *DYNAMIC_VARIABLES;
 } hushEnv = {"","/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin","hush",
              "/","/","less",
-             "vi","","","<[H]> "};
-
+             "vi","","","<[H]> ", {"test", 27} };
+             //The dynamics variables structure is not initialized properly. What
+             //is the right way to do it?
 typedef struct hE {
     long long int index;
     // some sort of timestamp
     struct timeval tv;
+    char *cmdStr;
 } historyEntry;
 
 typedef struct jI {
     pid_t pid;
-    char cmdStr[cmdCap];  //the raw command.
+    char *cmdStr;  //the raw command.
     //what should a processed command be? It should be a list of commands which
     //all get executed. Or a single command which gets executed. Or a modification
     //of the shell's internal state (e.g. cd, pushd). Or a command which has its
@@ -47,19 +46,20 @@ typedef struct jI {
     //a command is a pre-processed 
     char **cmd;           //the processed command.
     char ***cmdAST;
-    bool_t isBackground;
+    int isBackground;
 } jobItem;
 
 struct hS {
-    bool_t isInteractive;
-    bool_t isRunning;
-    enum { okComputer, hushUnknownArch, hushUndefinedOption, hushCommandNotFound
+    int isInteractive;
+    int isRunning;
+    enum { okComputer, hushUnknownArch, hushUndefinedOption, hushCommandNotFound,
+           hushHistExpansionError, hushFilePathExpansionError,
            hushEnvironmentError } hushErrno;
-    jobItem jobs[jobCap];
+    jobItem *jobs;
     unsigned short int jobCount;
-    historyEntry hushHist[histCap];
+    historyEntry *hushHist;
     unsigned short int histCount;
-    char dirStack[dirCap];
+    char *dirStack;
     unsigned short int dirCount;
 } hushState;
 

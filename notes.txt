@@ -1,0 +1,25 @@
+The keyword struct introduces a structure declaration which is a list of declarations enclosed in 
+braces.
+
+struct {  } a, b, c
+    is analogous to `int a, b, c'.
+a consequence of this meaning is that
+struct { } a[4]
+    declares an array of 4 of the structure.
+
+
+struct [struct tag] {  } [instances];
+    where struct tag is an identifier that allows later instances to be declared using the {  } syntax.
+    e.g.  ``struct point = {1,2}'' after a ``struct point {int x; int y; 
+
+functions can return structs.
+
+The size of a pointer which will be used as an array has its range set by initialization with brace syntax.
+automatic variable - 
+static
+    static functions are constrained to the file they are defined in.
+    static variables do not get de-allocated after a function stops executing.
+extern
+    makes a variable declared within a non-global scope a global variable.
+
+All enum identifiers are global.

@@ -2,8 +2,8 @@
     //hushOptions has already included hushTypes
 
 // Side Effects: modifies only hushEnv
-// For description of errVal, see State.hushErrno
-errVal setEnv(int argc, char** argv) {
+// For description of int, see State.hushErrno
+int setEnv(int argc, char** argv) {
     hushState.hushErrno = okComputer;
     // Architecture Stuff
     #ifdef __FreeBSD__
@@ -45,8 +45,8 @@ errVal setEnv(int argc, char** argv) {
 }
 
 // Side Effects: modifies only hushState
-// For description of errVal, see State.hushErrno
-errVal setState(int argc, char** argv) {
+// For description of int, see State.hushErrno
+int setState(int argc, char** argv) {
     int opt = 0, long_index = 0;
     hushState.isInteractive = 1;
     hushState.isRunning = 1;
@@ -64,7 +64,7 @@ errVal setState(int argc, char** argv) {
     return (hushState.hushErrno);
 }
 
-void errorFunnel(errVal setEnvRes) {
+void errorFunnel(int setEnvRes) {
     switch (setEnvRes) {
         case okComputer: return;
         case hushUnknownArch: fprintf(stderr, "Warning, unrecognized architecture\n");
@@ -72,14 +72,27 @@ void errorFunnel(errVal setEnvRes) {
         case hushEnvironmentError: exit(hushEnvironmentError);
         case hushHistExpansionError: fprintf(stderr, "Malformed history Expansion\n");
         case hushFilePathExpansionError: fprintf(stderr, "Malformed filepath Expansion\n");
-        default: printf("Unclassified Error \n");
+        default: fprintf(stderr, "Unclassified Error \n");
     }
+}
+//an auxilliary function for preprocessCmd
+int expansions() {
+    //pathname expansions
+
+    //history expansions
+
+    return (hushState.hushErrno);
+}
+
+//an auxilliary function for preprocessCmd
+int handleBuiltin(char* theBuiltin) {
+    return (hushState.hushErrno);
 }
 
 // Side Effects: modifies hushState.jobs
-// For description of errVal, see State.hushErrno
+// For description of int, see State.hushErrno
 // setCmd
-errVal preprocessCmd(strLength, str, bool_t isStartup) {
+int preprocessCmd(int strLength, char* str) {
     char *word;
     int j = 0;
     //Build cmdAST
@@ -106,7 +119,7 @@ errVal preprocessCmd(strLength, str, bool_t isStartup) {
     }
     errorFunnel(expansions()); 
     //Now we flatten the AST to get a sequence of commands
-    for (int i = 0; i < strlen(hush.State.jobs[hushState.jobCount].cmdAST); ++i) {
+    for (int i = 0; i < strlen(hushState.jobs[hushState.jobCount].cmdAST); ++i) {
         for (int j = 0; j < strlen(hushState.jobs[hushState.jobCount].cmdAST[i]); ++j) {
             strcat(hushState.jobs[hushState.jobCount].cmd[i],
                    hushState.jobs[hushState.jobCount].cmdAST[i][j]);
@@ -115,29 +128,21 @@ errVal preprocessCmd(strLength, str, bool_t isStartup) {
     return (hushState.hushErrno);
 }
 // A command 
-void doCmd(char **cmd) {
+int doCmd(char **cmd) {
     pid_t forkRet = fork();
+    //I may need to iterate through char** with a method other than strlen
     if (forkRet == 0) {  //child process branch
         for (int i = 0; i < strlen(cmd); ++i) {
-
-        execv(sysEnv.PATH, hushState.jobs[hushState.jobCount].cmdStr);
+        execv(hushEnv.PATH, hushState.jobs[hushState.jobCount].cmd[i]);
+        }
     }
     else if (forkRet > 0) { //parent process branch
-        if (! hushState.jobs[hushState.jobCount].cmd.isBackground) {
-            while(1) { if (wait() == -1) { break; } }
+        if (! hushState.jobs[hushState.jobCount].isBackground) {
+            while(1) { if (wait(NULL) == -1) { break; } }
         }
     }
     else {
         fprintf(stderr, "Failed to fork in doCmd\n");
     }
-}
-
-errVal expansions() {
-    //pathname expansions
-
-    //history expansions
-}
-
-errVal handleBuiltin(char* theBuiltin) {
-
+    return(hushState.hushErrno);
 }

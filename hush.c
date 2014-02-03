@@ -12,12 +12,11 @@ int main (int argc, char** argv) {
     errorFunnel(setState(argc, argv));
     if (hushState.isInteractive) {
         while(hushState.isRunning) {
+              unsigned int lineLen;
               printf("%s", hushEnv.PS1);
-              fgetline(stdin, hushState.jobs[hushState.jobCount].cmdStr, cmdCap);
-              errorFunnel(preprocessCmd(strlen(hushState.jobs[hushState.jobCount].cmdStr), 
-                          hushState.jobs[hushState.jobCount].cmdStr));
-              doCmd(hushState.jobs[jobCount].cmd);
-              else { printf("Malformed Command, Error ID %i \n", hushState.hushErrno); }
+              lineLen = getline(hushState.jobs[hushState.jobCount].cmdStr, cmdCap);
+              errorFunnel(preprocessCmd(lineLen, hushState.jobs[hushState.jobCount].cmdStr));
+              errorFunnel(doCmd(hushState.jobs[hushState.jobCount].cmd));
               //The exit command will exit this loop.
         }
     }
@@ -25,7 +24,6 @@ int main (int argc, char** argv) {
         errorFunnel(preprocessCmd(strlen(hushState.jobs[hushState.jobCount].cmdStr), 
                     hushState.jobs[hushState.jobCount].cmdStr));
         doCmd(hushState.jobs[hushState.jobCount].cmd); 
-        }
+    }
     return (hushState.hushErrno);
 }
-//Look, A main function without an assignment statement!
