@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include "hushFunctions.c"
+
          //hushFunctions.c includes hushTypes.c; the include carries over.
 
 /*USAGE:
@@ -13,8 +14,9 @@ int main (int argc, char** argv) {
     if (hushState.isInteractive) {
         while(hushState.isRunning) {
               unsigned int lineLen;
+              size_t linecap = 0;
               printf("%s", hushEnv.PS1);
-              lineLen = getline(hushState.jobs[hushState.jobCount].cmdStr, cmdCap);
+              lineLen = getline(&(hushState.jobs[hushState.jobCount].cmdStr), &linecap, stdin);
               errorFunnel(preprocessCmd(lineLen, hushState.jobs[hushState.jobCount].cmdStr));
               errorFunnel(doCmd(hushState.jobs[hushState.jobCount].cmd));
               //The exit command will exit this loop.

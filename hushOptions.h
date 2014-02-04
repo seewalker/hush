@@ -9,14 +9,7 @@ struct option *long_options = {
     {"PAGER", required_argument, 0, 'a' },
     {"EDITOR", required_argument, 0, 'e' },
     {"PS1", required_argument, 0, 'r' },
-    {"nonInteractive", no_argument, 0, 'n'}, //interactive by default
+    {"nonInteractive", required_argument, 0, 'n'}, //interactive by default
     {0, 0, 0, 0}
 };
 
-struct optionSpec {
-    char *knownOpts;
-    int numKnownOpts;
-    //the number of words each option introduces is necessary
-    //in order to execute the startup command.
-    int *optLen;
-} hushOptSpec = {"pcaern", 6, {2,2,2,2,2,1}};
