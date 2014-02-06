@@ -16,6 +16,8 @@
 #define NUM_ENV_DEPS 1
 #define builtinWordLen 16
 #define NUM_HUSH_DELIMITERS 1
+#define TIMESTAMP_LIM 28
+
 struct sysEnv {
     char ARCH[50];
     char PATH[200];
@@ -39,9 +41,11 @@ struct sysEnv {
 typedef struct hE {
     long long int index;
     // some sort of timestamp
-    struct timeval tv;
+    char timestamp[TIMESTAMP_LIM]; 
     char cmdStr[cmdStrLim];
     char cmdAST[cmdRepLim][cmdWordLim][cmdWordLenLim];
+    unsigned int cmdRep;
+    unsigned int argc;
 } historyEntry;
 
 typedef struct jI {
@@ -53,7 +57,7 @@ typedef struct jI {
     //arguments modified by the shell's state. Yeah, so a list of commands where
     //a command is a pre-processed 
     char cmd[cmdRepLim][cmdStrLim];        //the processed command.
-    char cmdArgs[cmdRepLim][cmdWordLim - 1];    //the processed command minus the command itself.
+    char cmdArgs[cmdRepLim][cmdWordLim][cmdWordLenLim];    //the processed command minus the command itself.
                                            //this annoying duplication is needed because
                                            //different operating systems require different
                                            //exec system calls.  

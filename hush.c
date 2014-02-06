@@ -29,7 +29,7 @@ int main (int argc, char** argv) {
     else { //hush is being run non-interactively with command specified with -n option.
         errorFunnel(preprocessCmd(strlen(hushState.jobs[hushState.jobCount].cmdStr), 
                     hushState.jobs[hushState.jobCount].cmdStr));
-        doCmd(hushState.jobs[hushState.jobCount].cmd); 
+        doCmd(hushState.jobs[hushState.jobCount].handleInternally); 
     }
     return (hushState.hushErrno);
 }

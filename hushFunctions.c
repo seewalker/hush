@@ -109,7 +109,7 @@ void errorFunnel(int setEnvRes) {
 int expansions() {
     //unsigned int homeLen, argLen;
     //man page customization
-    //if (strcmp(hushState.jobs[hushState.jobCount].cmdAST[0][0], "man")) {
+    //if (strcmp(hushState.jobs[hushState.jobCount].cmdAST[0][0], "man") == 0) {
         //for (int i = (hushState.jobs[hushState.jobCount].argc - 1); i > 0; ++i) {
             //hushState.jobs[hushState.jobCount].cmdAST[0][i + 2] = hushState.jobs[hushState.jobCount].cmdAST[0][i]; 
         //}
@@ -136,7 +136,7 @@ int expansions() {
     //}
 //
     ////loop expansions
-    //if (strcmp(hushState.jobs[hushState.jobCount].cmdAST[0][0], "repeat")) {
+    //if (strcmp(hushState.jobs[hushState.jobCount].cmdAST[0][0], "repeat") == 0) {
         //for (int i = 1; i < atoi(hushState.jobs[hushState.jobCount].cmdAST[0][1]); ++i) {
             //for (int j = 0; j < hushState.jobs[hushState.jobCount].argc; ++j) {
                 //strcpy(hushState.jobs[hushState.jobCount].cmdAST[i][j], hushState.jobs[hushState.jobCount].cmdAST[0][j]);
@@ -148,9 +148,15 @@ int expansions() {
     ////dynamic variable expansions
 //
     ////history expansions
-    //if (strcmp(hushState.jobs[hushState.jobCount].cmdAST[0][0], "hist")) {
-        //hushState.hushHist[atoi(hushState.jobs[hushState.jobCount].cmdAST[0][1])].cmdAST
-    //}
+    if (strcmp(hushState.jobs[hushState.jobCount].cmdAST[0][0], "hist") == 0) {
+        unsigned int histIndex = atoi(hushState.jobs[hushState.jobCount].cmdAST[0][1]);
+        for (int i = 0; i < hushState.hushHist[histIndex].cmdRep; ++i) {
+            for (int j = 0; j < hushState.hushHist[histIndex].argc; ++j) {
+                strcpy(hushState.jobs[hushState.jobCount].cmdAST[i][j], hushState.hushHist[histIndex].cmdAST[i][j]);
+            }
+        }
+    }
+        
     return (hushState.hushErrno);
 }
 
@@ -171,14 +177,18 @@ int preprocessCmd(int strLength, char* cmdStr) {
     }
 
     //Operate on cmdAST
-    //strcmp is returning true when comparing "cd" against "ls"
-    if (   strcmp("cd", hushState.jobs[hushState.jobCount].cmdAST[0][0])
-        || strcmp("pwd", hushState.jobs[hushState.jobCount].cmdAST[0][0])
-        || strcmp("exit", hushState.jobs[hushState.jobCount].cmdAST[0][0])
-        || strcmp("pushd", hushState.jobs[hushState.jobCount].cmdAST[0][0])
-        || strcmp("popd", hushState.jobs[hushState.jobCount].cmdAST[0][0])
-        || strcmp("set", hushState.jobs[hushState.jobCount].cmdAST[0][0])) {
+    if (   strcmp("cd", hushState.jobs[hushState.jobCount].cmdAST[0][0]) == 0
+        || strcmp("pwd", hushState.jobs[hushState.jobCount].cmdAST[0][0]) == 0
+        || strcmp("exit", hushState.jobs[hushState.jobCount].cmdAST[0][0]) == 0
+        || strcmp("pushd", hushState.jobs[hushState.jobCount].cmdAST[0][0]) == 0
+        || strcmp("popd", hushState.jobs[hushState.jobCount].cmdAST[0][0]) == 0
+        || strcmp("set", hushState.jobs[hushState.jobCount].cmdAST[0][0]) == 0) {
         hushState.jobs[hushState.jobCount].handleInternally = 1;
+    }
+    if ( strcmp("&", hushState.jobs[hushState.jobCount].cmdAST[0][hushState.jobs[hushState.jobCount].argc]) == 0) {
+        hushState.jobs[hushState.jobCount].isBackground = 1;
+        strcpy(hushState.jobs[hushState.jobCount].cmdAST[0][hushState.jobs[hushState.jobCount].argc], "\0");
+        hushState.jobs[hushState.jobCount].argc -= 1;
     }
     //Note, it is important to handle builtins before doing expansions so that the expansions take effect for
     //all iterations of loop expansions.
@@ -206,15 +216,18 @@ int doCmd(unsigned int isInternal) {
             printf("In the child process \n");
             for (int i = 0; i < hushState.jobs[hushState.jobCount].cmdRep; ++i) {
                 printf("In the inner loop with hushEnv.ARCH %s\n", hushEnv.ARCH);
-                if (strcmp(hushEnv.ARCH, "FreeBSD") || strcmp(hushEnv.ARCH, "Darwin")) {
-                    printf("Tried to run %s with arguments %s in BSD branch\n",
-                           hushState.jobs[hushState.jobCount].cmdAST[i][0],
-                           hushState.jobs[hushState.jobCount].cmdArgs);
-                    execvP(hushState.jobs[hushState.jobCount].cmdAST[i][0],
-                           hushEnv.PATH,
-                           hushState.jobs[hushState.jobCount].cmdArgs[i]);
+                if (strcmp(hushEnv.ARCH, "FreeBSD") == 0 || 
+                    strcmp(hushEnv.ARCH, "Darwin") == 0) {
+                    //printf("Tried to run %s with arguments %s in BSD branch\n",
+                      //     hushState.jobs[hushState.jobCount].cmdAST[i][0],
+                        //   hushState.jobs[hushState.jobCount].cmdArgs[i][1]);
+                   // if (execvP(hushState.jobs[hushState.jobCount].cmdAST[i][0],
+                     //      hushEnv.PATH,
+                       //    hushState.jobs[hushState.jobCount].cmdArgs[i]) == -1) {
+                       // printf("Failed to exec\n");
+                    execvp(hushState.jobs[hushState.jobCount].cmdAST[i][0],args);
                 }
-                else if (strcmp(hushEnv.ARCH, "Linux")) {
+                else if (strcmp(hushEnv.ARCH, "Linux") == 0) {
                     printf("Tried to run %s with argument %s in Linux branch\n",
                            hushState.jobs[hushState.jobCount].cmd[i],
                            hushState.jobs[hushState.jobCount].cmdArgs);
@@ -242,6 +255,19 @@ int doCmd(unsigned int isInternal) {
 }
 
 int postprocessCmd() {
-    //If 
+    //save  a histEntry struct.
+    time_t t;
+    t = time(NULL);
+    strcpy( hushState.hushHist[hushState.histCount].timestamp, asctime(localtime(&t)));
+    strcpy( hushState.hushHist[hushState.histCount].cmdStr, hushState.jobs[hushState.jobCount].cmdStr);
+    for (int i = 0; i < hushState.jobs[hushState.jobCount].cmdRep; ++i) {
+        for (int j = 0; j < hushState.jobs[hushState.jobCount].argc; ++j) {
+            strcpy(hushState.hushHist[hushState.histCount].cmdAST[i][j],
+                   hushState.jobs[hushState.jobCount].cmdAST[i][j]);
+        }
+    }
+    hushState.hushHist[hushState.histCount].cmdRep = hushState.jobs[hushState.jobCount].cmdRep;
+    hushState.hushHist[hushState.histCount].argc = hushState.jobs[hushState.jobCount].argc;
+    hushState.histCount += 1;
     return(hushState.hushErrno);
 }
