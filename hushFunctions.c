@@ -69,6 +69,8 @@ int setState(int argc, char** argv) {
     hushState.dirCount = 0;
     hushState.histCount = 0;
     hushState.jobs[hushState.jobCount].cmdRep = 1;
+    hushState.jobs[hushState.jobCount].argc = 0;
+    hushState.jobs[hushState.jobCount].handleInternally = 0;    
     while ((opt = getopt_long(argc,argv,"p:c:a:e:r:n:",
                              long_options, &long_index)) != -1) {
         if (opt == 'n') {
@@ -85,6 +87,7 @@ void errorFunnel(int setEnvRes) {
         case okComputer: return;
         case hushUnknownArch: 
             fprintf(stderr, "Warning, unrecognized architecture\n");
+            exit(hushUnknownArch);
             break;
         case hushUndefinedOption: 
             fprintf(stderr, "Error, undefined option\n");
@@ -104,12 +107,50 @@ void errorFunnel(int setEnvRes) {
 }
 //an auxilliary function for preprocessCmd
 int expansions() {
-    //path expansions
-    return (hushState.hushErrno);
-}
-
-//an auxilliary function for preprocessCmd
-int handleBuiltin(char* theBuiltin) {
+    //unsigned int homeLen, argLen;
+    //man page customization
+    //if (strcmp(hushState.jobs[hushState.jobCount].cmdAST[0][0], "man")) {
+        //for (int i = (hushState.jobs[hushState.jobCount].argc - 1); i > 0; ++i) {
+            //hushState.jobs[hushState.jobCount].cmdAST[0][i + 2] = hushState.jobs[hushState.jobCount].cmdAST[0][i]; 
+        //}
+        //strcpy(hushState.jobs[hushState.jobCount].cmdAST[0][1], "-P");
+        //strcpy(hushState.jobs[hushState.jobCount].cmdAST[0][2], hushEnv.PAGER);
+        //hushState.jobs[hushState.jobCount].argc += 2;
+    //}
+//
+    ////path expansions
+    //for (int i = 1; i < argc; ++i) {
+        //homeSpace = strlen(hushEnv.HOME) - 1; //the minus one is there because the ~ character itself gets taken away.
+        //argLen = strlen(hushState.jobs[hushState.jobCount].cmdAST[0][i]);
+        //for (int j = 0; j < argLen; ++j) {
+            //if (hushState.jobs[hushState.jobCount].cmdAST[0][i][j] == hushHomeSymbol) {
+                //for (int k = (argLen - 1); k > j; --k) {
+                    //if ( (k + homeLen) > cmdWordLenLim) {
+                        //hushState.hushErrno = hushCmdWordOverflow;
+                    //}
+                    //hushState.jobs[hushState.jobCount].cmdAST[0][i][k + homeLen] = hushState.jobs[hushState.jobCount].cmdAST[0][i][k];
+                    ////The line above shifts the rest of the argument over, I still need to fill in the $HOME part. 
+                //}
+            //}
+        //}
+    //}
+//
+    ////loop expansions
+    //if (strcmp(hushState.jobs[hushState.jobCount].cmdAST[0][0], "repeat")) {
+        //for (int i = 1; i < atoi(hushState.jobs[hushState.jobCount].cmdAST[0][1]); ++i) {
+            //for (int j = 0; j < hushState.jobs[hushState.jobCount].argc; ++j) {
+                //strcpy(hushState.jobs[hushState.jobCount].cmdAST[i][j], hushState.jobs[hushState.jobCount].cmdAST[0][j]);
+            //}
+        //}
+    //}
+    ////example usage of for statement:   ``for i in {1..20} : <command>''
+//
+    ////dynamic variable expansions
+//
+    ////history expansions
+    //if (strcmp(hushState.jobs[hushState.jobCount].cmdAST[0][0], "hist")) {
+        //hushState.hushHist[atoi(hushState.jobs[hushState.jobCount].cmdAST[0][1])].cmdAST
+    //}
     return (hushState.hushErrno);
 }
 
@@ -119,80 +160,88 @@ int handleBuiltin(char* theBuiltin) {
 int preprocessCmd(int strLength, char* cmdStr) {
     char *tmpword;
     char *delim = malloc(NUM_HUSH_DELIMITERS + 1);
-    unsigned int numTokens = 0;
-
+    hushState.jobs[hushState.jobCount].argc = 0;
     //Build cmdAST
     strcpy(delim, " ");
     tmpword = strtok(cmdStr, delim);
     while (tmpword != NULL) {
-        strcpy(hushState.jobs[hushState.jobCount].cmdAST[0][numTokens], tmpword);
-        ++numTokens;
+        strcpy(hushState.jobs[hushState.jobCount].cmdAST[0][hushState.jobs[hushState.jobCount].argc], tmpword);
+        hushState.jobs[hushState.jobCount].argc += 1;
         tmpword = strtok(NULL, delim);
     }
 
     //Operate on cmdAST
-    for (int i = 0; i < numBuiltins; ++i) {
-        if (strcmp(hushBuiltins[i], hushState.jobs[hushState.jobCount].cmdAST[0][0])) {
-            errorFunnel(handleBuiltin(hushBuiltins[i]));
-        }
+    //strcmp is returning true when comparing "cd" against "ls"
+    if (   strcmp("cd", hushState.jobs[hushState.jobCount].cmdAST[0][0])
+        || strcmp("pwd", hushState.jobs[hushState.jobCount].cmdAST[0][0])
+        || strcmp("exit", hushState.jobs[hushState.jobCount].cmdAST[0][0])
+        || strcmp("pushd", hushState.jobs[hushState.jobCount].cmdAST[0][0])
+        || strcmp("popd", hushState.jobs[hushState.jobCount].cmdAST[0][0])
+        || strcmp("set", hushState.jobs[hushState.jobCount].cmdAST[0][0])) {
+        hushState.jobs[hushState.jobCount].handleInternally = 1;
     }
-    //Eventually, I will handle envDeps
+    //Note, it is important to handle builtins before doing expansions so that the expansions take effect for
+    //all iterations of loop expansions.
     errorFunnel(expansions());
     //Now we flatten the AST to get a sequence of commands
     for (int i = 0; i < hushState.jobs[hushState.jobCount].cmdRep; ++i) {
-        for (int j = 0; j < numTokens; ++j) {
+        for (int j = 0; j < hushState.jobs[hushState.jobCount].argc; ++j) {
               strcat(hushState.jobs[hushState.jobCount].cmd[i], 
                      hushState.jobs[hushState.jobCount].cmdAST[i][j]);
               strcat(hushState.jobs[hushState.jobCount].cmd[i], " ");
               if (j > 0) {
-              strcat(hushState.jobs[hushState.jobCount].cmdArgs[i],
+              strcpy(hushState.jobs[hushState.jobCount].cmdArgs[i][j - 1],
                      hushState.jobs[hushState.jobCount].cmdAST[i][j]);
-              strcat(hushState.jobs[hushState.jobCount].cmdArgs[i], " ");
               }
         }
     }
     return (hushState.hushErrno);
 }
 // A command 
-int doCmd() {
-    int forkRet = fork();
-    //I may need to iterate through char** with a method other than strlen
-    if (forkRet == 0) {  //child process branch
-        printf("In the child process \n");
-        for (int i = 0; i < hushState.jobs[hushState.jobCount].cmdRep; ++i) {
-            printf("In the inner loop with hushEnv.ARCH %s\n", hushEnv.ARCH);
-            if (strcmp(hushEnv.ARCH, "FreeBSD") || strcmp(hushEnv.ARCH, "Darwin")) {
-                printf("Tried to run %s with argument %s in BSD branch\n",
-                       hushState.jobs[hushState.jobCount].cmd[i],
-                       hushState.jobs[hushState.jobCount].cmdArgs);
-                execvP(hushState.jobs[hushState.jobCount].cmd[0],
-                       hushEnv.PATH,
-                       hushState.jobs[hushState.jobCount].cmdArgs);
-            }
-            else if (strcmp(hushEnv.ARCH, "Linux")) {
-                printf("Tried to run %s with argument %s in Linux branch\n",
-                       hushState.jobs[hushState.jobCount].cmd[i],
-                       hushState.jobs[hushState.jobCount].cmdArgs);
-                execvp(hushState.jobs[hushState.jobCount].cmd[i],
-                       hushState.jobs[hushState.jobCount].cmdArgs);
-            }
-            else {
-                fprintf(stderr, "Uncaught error: unrecognized architecture\n");
+int doCmd(unsigned int isInternal) {
+    if (!isInternal) {
+        int forkRet = fork();
+        //I may need to iterate through char** with a method other than strlen
+        if (forkRet == 0) {  //child process branch
+            printf("In the child process \n");
+            for (int i = 0; i < hushState.jobs[hushState.jobCount].cmdRep; ++i) {
+                printf("In the inner loop with hushEnv.ARCH %s\n", hushEnv.ARCH);
+                if (strcmp(hushEnv.ARCH, "FreeBSD") || strcmp(hushEnv.ARCH, "Darwin")) {
+                    printf("Tried to run %s with arguments %s in BSD branch\n",
+                           hushState.jobs[hushState.jobCount].cmdAST[i][0],
+                           hushState.jobs[hushState.jobCount].cmdArgs);
+                    execvP(hushState.jobs[hushState.jobCount].cmdAST[i][0],
+                           hushEnv.PATH,
+                           hushState.jobs[hushState.jobCount].cmdArgs[i]);
+                }
+                else if (strcmp(hushEnv.ARCH, "Linux")) {
+                    printf("Tried to run %s with argument %s in Linux branch\n",
+                           hushState.jobs[hushState.jobCount].cmd[i],
+                           hushState.jobs[hushState.jobCount].cmdArgs);
+                    execvp(hushState.jobs[hushState.jobCount].cmd[i],
+                           hushState.jobs[hushState.jobCount].cmdArgs);
+                }
+                else {
+                    fprintf(stderr, "Uncaught error: unrecognized architecture\n");
+                }
             }
         }
-    }
-    else if (forkRet > 0) { //parent process branch
-        printf("In the parent process \n");
-        if (! hushState.jobs[hushState.jobCount].isBackground) {
-            while(1) { if (wait(NULL) == -1) { printf("looping"); break; } }
+        else if (forkRet > 0) { //parent process branch
+            printf("In the parent process \n");
+            if (! hushState.jobs[hushState.jobCount].isBackground) {
+                while(1) { if (wait(NULL) == -1) { printf("looping"); break; } }
+            }
+        }
+        else {
+            fprintf(stderr, "Failed to fork in doCmd\n");
         }
     }
-    else {
-        fprintf(stderr, "Failed to fork in doCmd\n");
+    else { //internal command
     }
     return(hushState.hushErrno);
 }
 
 int postprocessCmd() {
     //If 
+    return(hushState.hushErrno);
 }

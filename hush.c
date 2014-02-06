@@ -21,7 +21,7 @@ int main (int argc, char** argv) {
                   hushState.jobs[hushState.jobCount].cmdStr[lineLen - 1] = '\0';
               }
               errorFunnel(preprocessCmd(lineLen, hushState.jobs[hushState.jobCount].cmdStr));
-              errorFunnel(doCmd());
+              errorFunnel(doCmd(hushState.jobs[hushState.jobCount].handleInternally));
               errorFunnel(postprocessCmd());
               //The exit command will exit this loop.
         }

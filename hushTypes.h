@@ -7,7 +7,7 @@
 #define cmdStrLim 300
 #define cmdRepLim 20
 #define cmdWordLim 20
-#define cmdWordLenLim 30
+#define cmdWordLenLim 40
 #define jobMax 32
 #define histSize 1000
 #define dirStackMax 16
@@ -41,6 +41,7 @@ typedef struct hE {
     // some sort of timestamp
     struct timeval tv;
     char cmdStr[cmdStrLim];
+    char cmdAST[cmdRepLim][cmdWordLim][cmdWordLenLim];
 } historyEntry;
 
 typedef struct jI {
@@ -52,21 +53,24 @@ typedef struct jI {
     //arguments modified by the shell's state. Yeah, so a list of commands where
     //a command is a pre-processed 
     char cmd[cmdRepLim][cmdStrLim];        //the processed command.
-    char cmdArgs[cmdRepLim][cmdStrLim];    //the processed command minus the command itself.
+    char cmdArgs[cmdRepLim][cmdWordLim - 1];    //the processed command minus the command itself.
                                            //this annoying duplication is needed because
                                            //different operating systems require different
                                            //exec system calls.  
     char cmdAST[cmdRepLim][cmdWordLim][cmdWordLenLim];
-    unsigned short cmdRep;
+    unsigned int cmdRep;
+    unsigned int argc;
     int isBackground;
+    unsigned short int handleInternally;
 } jobItem;
 
 struct hS {
     int isInteractive;
     int isRunning;
     enum { okComputer, hushUnknownArch, hushUndefinedOption, hushCommandNotFound,
-           hushHistExpansionError, hushFilePathExpansionError,
-           hushEnvironmentError } hushErrno;
+           hushInvalidExpansion, hushFilePathExpansionError, hushHistExpansionError,
+           hushEnvironmentError, hushCmdWordOverflow
+            } hushErrno;
     jobItem jobs[jobMax];
     unsigned short int jobCount;
     historyEntry hushHist[histSize];
@@ -75,7 +79,8 @@ struct hS {
     unsigned short int dirCount;
 } hushState;
 
-const char hushBuiltins[numBuiltins][builtinWordLen] =  {"exit", "cd", "pwd", "pushd", "popd", "for", "repeat", "set", "fc", "hist"};
+const char hushBuiltins[numBuiltins][builtinWordLen] =  {"exit", "cd", "pwd", "pushd", "popd", "for", "repeat", "set", "fc", "hist", "source"};
+const char hushHomeSymbol = '~';
 const char envDeps[NUM_ENV_DEPS][builtinWordLen] =  {"man"};
 
 //Matters of Strategy:
