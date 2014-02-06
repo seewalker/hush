@@ -3,7 +3,15 @@
 
 // Side Effects: modifies only hushEnv
 // For description of int, see State.hushErrno
-int setEnv(int argc, char** argv) {
+int setState(int argc, char** argv) {
+    hushState.isInteractive = 1;
+    hushState.isRunning = 1;
+    hushState.jobCount = 0;
+    hushState.dirCount = 0;
+    hushState.histCount = 0;
+    hushState.jobs[hushState.jobCount].cmdRep = 1;
+    hushState.jobs[hushState.jobCount].argc = 0;
+    hushState.jobs[hushState.jobCount].handleInternally = 0;    
     hushState.hushErrno = okComputer;
     // Architecture Stuff
     #ifdef __FreeBSD__
@@ -51,6 +59,11 @@ int setEnv(int argc, char** argv) {
             case 'r' : 
                 strcpy(hushEnv.PS1, optarg);
                 break;
+            case 'n' :
+                hushState.isInteractive = 0;
+                hushState.isRunning = 0;
+                strcpy(hushState.jobs[hushState.jobCount].cmdStr, optarg);
+                break;
             default : 
                 hushState.hushErrno = hushUndefinedOption;
                 break;
@@ -59,28 +72,6 @@ int setEnv(int argc, char** argv) {
     return (hushState.hushErrno);
 }
 
-// Side Effects: modifies only hushState
-// For description of int, see State.hushErrno
-int setState(int argc, char** argv) {
-    int opt = 0, long_index = 0;
-    hushState.isInteractive = 1;
-    hushState.isRunning = 1;
-    hushState.jobCount = 0;
-    hushState.dirCount = 0;
-    hushState.histCount = 0;
-    hushState.jobs[hushState.jobCount].cmdRep = 1;
-    hushState.jobs[hushState.jobCount].argc = 0;
-    hushState.jobs[hushState.jobCount].handleInternally = 0;    
-    while ((opt = getopt_long(argc,argv,"p:c:a:e:r:n:",
-                             long_options, &long_index)) != -1) {
-        if (opt == 'n') {
-            hushState.isInteractive = 0;
-            hushState.isRunning = 0;
-            strcpy(hushState.jobs[hushState.jobCount].cmdStr, optarg);
-        }
-    }
-    return (hushState.hushErrno);
-}
 
 void errorFunnel(int setEnvRes) {
     switch (setEnvRes) {
@@ -200,8 +191,9 @@ int preprocessCmd(int strLength, char* cmdStr) {
                      hushState.jobs[hushState.jobCount].cmdAST[i][j]);
               strcat(hushState.jobs[hushState.jobCount].cmd[i], " ");
               if (j > 0) {
-              strcpy(hushState.jobs[hushState.jobCount].cmdArgs[i][j - 1],
-                     hushState.jobs[hushState.jobCount].cmdAST[i][j]);
+                  hushState.jobs[hushState.jobCount].cmdArgs[i].ca[j - 1] = malloc(100);
+                  strcpy(hushState.jobs[hushState.jobCount].cmdArgs[i].ca[j - 1],
+                         hushState.jobs[hushState.jobCount].cmdAST[i][j]);
               }
         }
     }
@@ -213,26 +205,17 @@ int doCmd(unsigned int isInternal) {
         int forkRet = fork();
         //I may need to iterate through char** with a method other than strlen
         if (forkRet == 0) {  //child process branch
-            printf("In the child process \n");
             for (int i = 0; i < hushState.jobs[hushState.jobCount].cmdRep; ++i) {
                 printf("In the inner loop with hushEnv.ARCH %s\n", hushEnv.ARCH);
                 if (strcmp(hushEnv.ARCH, "FreeBSD") == 0 || 
                     strcmp(hushEnv.ARCH, "Darwin") == 0) {
-                    //printf("Tried to run %s with arguments %s in BSD branch\n",
-                      //     hushState.jobs[hushState.jobCount].cmdAST[i][0],
-                        //   hushState.jobs[hushState.jobCount].cmdArgs[i][1]);
-                   // if (execvP(hushState.jobs[hushState.jobCount].cmdAST[i][0],
-                     //      hushEnv.PATH,
-                       //    hushState.jobs[hushState.jobCount].cmdArgs[i]) == -1) {
-                       // printf("Failed to exec\n");
-                    execvp(hushState.jobs[hushState.jobCount].cmdAST[i][0],args);
+                    execvP(hushState.jobs[hushState.jobCount].cmdAST[i][0],
+                           hushEnv.PATH,
+                           hushState.jobs[hushState.jobCount].cmdArgs[i].ca);
                 }
                 else if (strcmp(hushEnv.ARCH, "Linux") == 0) {
-                    printf("Tried to run %s with argument %s in Linux branch\n",
-                           hushState.jobs[hushState.jobCount].cmd[i],
-                           hushState.jobs[hushState.jobCount].cmdArgs);
-                    execvp(hushState.jobs[hushState.jobCount].cmd[i],
-                           hushState.jobs[hushState.jobCount].cmdArgs);
+                    execvp(hushState.jobs[hushState.jobCount].cmdAST[i][0],
+                           hushState.jobs[hushState.jobCount].cmdArgs[i].ca);
                 }
                 else {
                     fprintf(stderr, "Uncaught error: unrecognized architecture\n");
@@ -240,7 +223,6 @@ int doCmd(unsigned int isInternal) {
             }
         }
         else if (forkRet > 0) { //parent process branch
-            printf("In the parent process \n");
             if (! hushState.jobs[hushState.jobCount].isBackground) {
                 while(1) { if (wait(NULL) == -1) { printf("looping"); break; } }
             }
@@ -250,6 +232,9 @@ int doCmd(unsigned int isInternal) {
         }
     }
     else { //internal command
+        if (strcmp(hushState.jobs[hushState.jobCount].cmdAST[0][0], "exit") == 0) {
+            exit(0);
+        }
     }
     return(hushState.hushErrno);
 }

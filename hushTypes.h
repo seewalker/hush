@@ -38,6 +38,7 @@ struct sysEnv {
              "vi","","","<[H]> ", {"test", 27} };
              //The dynamics variables structure is not initialized properly. What
              //is the right way to do it?
+
 typedef struct hE {
     long long int index;
     // some sort of timestamp
@@ -48,6 +49,10 @@ typedef struct hE {
     unsigned int argc;
 } historyEntry;
 
+typedef struct cA {
+    char *ca[cmdWordLim];
+} commandArguments;
+
 typedef struct jI {
     pid_t pid;
     char *cmdStr;  //the raw command.
@@ -57,10 +62,10 @@ typedef struct jI {
     //arguments modified by the shell's state. Yeah, so a list of commands where
     //a command is a pre-processed 
     char cmd[cmdRepLim][cmdStrLim];        //the processed command.
-    char cmdArgs[cmdRepLim][cmdWordLim][cmdWordLenLim];    //the processed command minus the command itself.
                                            //this annoying duplication is needed because
                                            //different operating systems require different
                                            //exec system calls.  
+    commandArguments cmdArgs[cmdRepLim];
     char cmdAST[cmdRepLim][cmdWordLim][cmdWordLenLim];
     unsigned int cmdRep;
     unsigned int argc;

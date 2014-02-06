@@ -9,7 +9,6 @@
     ~/filename form or /filename form.
 */
 int main (int argc, char** argv) {
-    errorFunnel(setEnv(argc, argv));
     errorFunnel(setState(argc, argv));
     if (hushState.isInteractive) {
         while(hushState.isRunning) {
