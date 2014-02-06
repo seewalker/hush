@@ -12,8 +12,10 @@
 #define histSize 1000
 #define dirStackMax 16
 #define dynVarMax 100
-#define numBuiltins 12
+#define numBuiltins 10
+#define NUM_ENV_DEPS 1
 #define builtinWordLen 16
+#define NUM_HUSH_DELIMITERS 1
 struct sysEnv {
     char ARCH[50];
     char PATH[200];
@@ -43,14 +45,19 @@ typedef struct hE {
 
 typedef struct jI {
     pid_t pid;
-    char cmdStr[cmdStrLim];  //the raw command.
+    char *cmdStr;  //the raw command.
     //what should a processed command be? It should be a list of commands which
     //all get executed. Or a single command which gets executed. Or a modification
     //of the shell's internal state (e.g. cd, pushd). Or a command which has its
     //arguments modified by the shell's state. Yeah, so a list of commands where
     //a command is a pre-processed 
-    char cmd[cmdRepLim][cmdStrLim];           //the processed command.
+    char cmd[cmdRepLim][cmdStrLim];        //the processed command.
+    char cmdArgs[cmdRepLim][cmdStrLim];    //the processed command minus the command itself.
+                                           //this annoying duplication is needed because
+                                           //different operating systems require different
+                                           //exec system calls.  
     char cmdAST[cmdRepLim][cmdWordLim][cmdWordLenLim];
+    unsigned short cmdRep;
     int isBackground;
 } jobItem;
 
@@ -68,8 +75,8 @@ struct hS {
     unsigned short int dirCount;
 } hushState;
 
-const char hushBuiltins[numBuiltins][builtinWordLen] =  {"cd", "pwd", "pushd", "popd", "for", "set", "fc", "hist"};
-const char envDeps[numBuiltins][builtinWordLen] =  {"man"};
+const char hushBuiltins[numBuiltins][builtinWordLen] =  {"exit", "cd", "pwd", "pushd", "popd", "for", "repeat", "set", "fc", "hist"};
+const char envDeps[NUM_ENV_DEPS][builtinWordLen] =  {"man"};
 
 //Matters of Strategy:
 //   I will not typedef structs which will have only one instantiation.

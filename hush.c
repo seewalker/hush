@@ -13,12 +13,16 @@ int main (int argc, char** argv) {
     errorFunnel(setState(argc, argv));
     if (hushState.isInteractive) {
         while(hushState.isRunning) {
-              unsigned int lineLen;
-              size_t linecap = 0;
+              size_t linecap = 0, lineLen = 0;
               printf("%s", hushEnv.PS1);
               lineLen = getline(&(hushState.jobs[hushState.jobCount].cmdStr), &linecap, stdin);
+              //remove trailing newline
+              if (hushState.jobs[hushState.jobCount].cmdStr[lineLen - 1] == '\n') {
+                  hushState.jobs[hushState.jobCount].cmdStr[lineLen - 1] = '\0';
+              }
               errorFunnel(preprocessCmd(lineLen, hushState.jobs[hushState.jobCount].cmdStr));
-              errorFunnel(doCmd(hushState.jobs[hushState.jobCount].cmd));
+              errorFunnel(doCmd());
+              errorFunnel(postprocessCmd());
               //The exit command will exit this loop.
         }
     }
