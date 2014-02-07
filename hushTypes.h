@@ -4,19 +4,19 @@
 #include <sys/time.h>
 
 //What is the meaning of all the struct words?
-#define cmdStrLim 300
-#define cmdRepLim 20
-#define cmdWordLim 20
-#define cmdWordLenLim 40
-#define jobMax 32
-#define histSize 1000
-#define dirStackMax 16
-#define dynVarMax 100
-#define numBuiltins 10
+#define CMD_STR_LIM 300
+#define CMD_REP_LIM 20
+#define CMD_WORD_LIM 20
+#define CMD_WORD_LEN_LIM 40
+#define JOB_MAX 32
+#define HIST_SIZE 1000
+#define DIR_STACK_MAX 16
+#define DYN_VAR_MAX 100
+#define NUM_BUILTINS 10
 #define NUM_ENV_DEPS 1
-#define builtinWordLen 16
-#define NUM_HUSH_DELIMITERS 1
+#define BUILTIN_WORD_LEN 16
 #define TIMESTAMP_LIM 28
+#define NUM_HUSH_DELIMITERS 1
 
 struct sysEnv {
     char ARCH[50];
@@ -32,7 +32,7 @@ struct sysEnv {
     struct dV {
         char* name;
         int value; //for now, these will be integers.
-    } DYNAMIC_VARIABLES[dynVarMax];
+    } DYNAMIC_VARIABLES[DYN_VAR_MAX];
 } hushEnv = {"","/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin","hush",
              "/","/","less",
              "vi","","","<[H]> ", {"test", 27} };
@@ -43,14 +43,14 @@ typedef struct hE {
     long long int index;
     // some sort of timestamp
     char timestamp[TIMESTAMP_LIM]; 
-    char cmdStr[cmdStrLim];
-    char cmdAST[cmdRepLim][cmdWordLim][cmdWordLenLim];
+    char cmdStr[CMD_STR_LIM];
+    char cmdAST[CMD_REP_LIM][CMD_WORD_LIM][CMD_WORD_LEN_LIM];
     unsigned int cmdRep;
     unsigned int argc;
 } historyEntry;
 
 typedef struct cA {
-    char *ca[cmdWordLim];
+    char *ca[CMD_WORD_LIM];
 } commandArguments;
 
 typedef struct jI {
@@ -61,12 +61,12 @@ typedef struct jI {
     //of the shell's internal state (e.g. cd, pushd). Or a command which has its
     //arguments modified by the shell's state. Yeah, so a list of commands where
     //a command is a pre-processed 
-    char cmd[cmdRepLim][cmdStrLim];        //the processed command.
+    char cmd[CMD_REP_LIM][CMD_STR_LIM];        //the processed command.
                                            //this annoying duplication is needed because
                                            //different operating systems require different
                                            //exec system calls.  
-    commandArguments cmdArgs[cmdRepLim];
-    char cmdAST[cmdRepLim][cmdWordLim][cmdWordLenLim];
+    commandArguments cmdArgs[CMD_REP_LIM];
+    char cmdAST[CMD_REP_LIM][CMD_WORD_LIM][CMD_WORD_LEN_LIM];
     unsigned int cmdRep;
     unsigned int argc;
     int isBackground;
@@ -80,17 +80,17 @@ struct hS {
            hushInvalidExpansion, hushFilePathExpansionError, hushHistExpansionError,
            hushEnvironmentError, hushCmdWordOverflow
             } hushErrno;
-    jobItem jobs[jobMax];
+    jobItem jobs[JOB_MAX];
     unsigned short int jobCount;
-    historyEntry hushHist[histSize];
+    historyEntry hushHist[HIST_SIZE];
     unsigned short int histCount;
-    char dirStack[dirStackMax];
+    char dirStack[DIR_STACK_MAX];
     unsigned short int dirCount;
 } hushState;
 
-const char hushBuiltins[numBuiltins][builtinWordLen] =  {"exit", "cd", "pwd", "pushd", "popd", "for", "repeat", "set", "fc", "hist", "source"};
+const char hushBuiltins[NUM_BUILTINS][BUILTIN_WORD_LEN] =  {"exit", "cd", "pwd", "pushd", "popd", "for", "repeat", "set", "fc", "hist", "source"};
 const char hushHomeSymbol = '~';
-const char envDeps[NUM_ENV_DEPS][builtinWordLen] =  {"man"};
+const char envDeps[NUM_ENV_DEPS][BUILTIN_WORD_LEN] =  {"man"};
 
 //Matters of Strategy:
 //   I will not typedef structs which will have only one instantiation.

@@ -100,15 +100,15 @@ void errorFunnel(int setEnvRes) {
 int expansions() {
     //unsigned int homeLen, argLen;
     //man page customization
-    //if (strcmp(hushState.jobs[hushState.jobCount].cmdAST[0][0], "man") == 0) {
-        //for (int i = (hushState.jobs[hushState.jobCount].argc - 1); i > 0; ++i) {
-            //hushState.jobs[hushState.jobCount].cmdAST[0][i + 2] = hushState.jobs[hushState.jobCount].cmdAST[0][i]; 
-        //}
-        //strcpy(hushState.jobs[hushState.jobCount].cmdAST[0][1], "-P");
-        //strcpy(hushState.jobs[hushState.jobCount].cmdAST[0][2], hushEnv.PAGER);
-        //hushState.jobs[hushState.jobCount].argc += 2;
-    //}
-//
+    if (strcmp(hushState.jobs[hushState.jobCount].cmdAST[0][0], "man") == 0) {
+        for (int i = (hushState.jobs[hushState.jobCount].argc - 1); i > 0; ++i) {
+            strcpy(hushState.jobs[hushState.jobCount].cmdAST[0][i + 2], hushState.jobs[hushState.jobCount].cmdAST[0][i]);
+        }
+        strcpy(hushState.jobs[hushState.jobCount].cmdAST[0][1], "-P");
+        strcpy(hushState.jobs[hushState.jobCount].cmdAST[0][2], hushEnv.PAGER);
+        hushState.jobs[hushState.jobCount].argc += 2;
+    }
+
     ////path expansions
     //for (int i = 1; i < argc; ++i) {
         //homeSpace = strlen(hushEnv.HOME) - 1; //the minus one is there because the ~ character itself gets taken away.
@@ -127,17 +127,27 @@ int expansions() {
     //}
 //
     ////loop expansions
-    //if (strcmp(hushState.jobs[hushState.jobCount].cmdAST[0][0], "repeat") == 0) {
-        //for (int i = 1; i < atoi(hushState.jobs[hushState.jobCount].cmdAST[0][1]); ++i) {
-            //for (int j = 0; j < hushState.jobs[hushState.jobCount].argc; ++j) {
-                //strcpy(hushState.jobs[hushState.jobCount].cmdAST[i][j], hushState.jobs[hushState.jobCount].cmdAST[0][j]);
-            //}
-        //}
-    //}
+    if (strcmp(hushState.jobs[hushState.jobCount].cmdAST[0][0], "repeat") == 0) {
+        for (int i = 1; i < atoi(hushState.jobs[hushState.jobCount].cmdAST[0][1]); ++i) {
+            for (int j = 0; j < hushState.jobs[hushState.jobCount].argc; ++j) {
+                strcpy(hushState.jobs[hushState.jobCount].cmdAST[i][j], hushState.jobs[hushState.jobCount].cmdAST[0][j]);
+            }
+        }
+    }
     ////example usage of for statement:   ``for i in {1..20} : <command>''
 //
     ////dynamic variable expansions
-//
+    int lookupMode = 0;
+    for (int i = 0; i < hushState.jobs[hushState.jobCount].cmdRep; ++i) {
+        for (int j = 0; j < hushState.jobs[hushState.jobCount].argc; ++j) {
+            for (int k = 0; k < strlen(hushState.jobs[hushState.jobCount].cmdAST[i][j]); ++k) {
+                if (hushState.jobs[hushState.jobCount].cmdAST[i][j][k] == '$') {
+                    lookupMode = 1;
+
+                }
+            }
+        }
+    }
     ////history expansions
     if (strcmp(hushState.jobs[hushState.jobCount].cmdAST[0][0], "hist") == 0) {
         unsigned int histIndex = atoi(hushState.jobs[hushState.jobCount].cmdAST[0][1]);
@@ -183,18 +193,16 @@ int preprocessCmd(int strLength, char* cmdStr) {
     }
     //Note, it is important to handle builtins before doing expansions so that the expansions take effect for
     //all iterations of loop expansions.
-    errorFunnel(expansions());
+    //errorFunnel(expansions());
     //Now we flatten the AST to get a sequence of commands
     for (int i = 0; i < hushState.jobs[hushState.jobCount].cmdRep; ++i) {
         for (int j = 0; j < hushState.jobs[hushState.jobCount].argc; ++j) {
               strcat(hushState.jobs[hushState.jobCount].cmd[i], 
                      hushState.jobs[hushState.jobCount].cmdAST[i][j]);
               strcat(hushState.jobs[hushState.jobCount].cmd[i], " ");
-              if (j > 0) {
-                  hushState.jobs[hushState.jobCount].cmdArgs[i].ca[j - 1] = malloc(100);
-                  strcpy(hushState.jobs[hushState.jobCount].cmdArgs[i].ca[j - 1],
-                         hushState.jobs[hushState.jobCount].cmdAST[i][j]);
-              }
+              hushState.jobs[hushState.jobCount].cmdArgs[i].ca[j] = malloc(100);
+              strcpy(hushState.jobs[hushState.jobCount].cmdArgs[i].ca[j],
+                     hushState.jobs[hushState.jobCount].cmdAST[i][j]);
         }
     }
     return (hushState.hushErrno);
@@ -206,7 +214,6 @@ int doCmd(unsigned int isInternal) {
         //I may need to iterate through char** with a method other than strlen
         if (forkRet == 0) {  //child process branch
             for (int i = 0; i < hushState.jobs[hushState.jobCount].cmdRep; ++i) {
-                printf("In the inner loop with hushEnv.ARCH %s\n", hushEnv.ARCH);
                 if (strcmp(hushEnv.ARCH, "FreeBSD") == 0 || 
                     strcmp(hushEnv.ARCH, "Darwin") == 0) {
                     execvP(hushState.jobs[hushState.jobCount].cmdAST[i][0],

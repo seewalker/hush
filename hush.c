@@ -1,13 +1,5 @@
 #include <stdio.h>
 #include "hushFunctions.c"
-
-         //hushFunctions.c includes hushTypes.c; the include carries over.
-
-/*USAGE:
-    All options must be before the command.
-    All filepaths must be explicitly declared as filepaths. Either in ./filename form,
-    ~/filename form or /filename form.
-*/
 int main (int argc, char** argv) {
     errorFunnel(setState(argc, argv));
     if (hushState.isInteractive) {
